@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 ﻿# dashboardApp
 # Uses komoots Photon and ORSM route Provider to provide in App Google free navigation.
 # The Map Style Displays were created using https://terraink.app/.
@@ -20,4 +19,3 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
->>>>>>> e5933e3 (Push exisitng app contents)
