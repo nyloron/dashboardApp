@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter App",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--no-dds"
+      ]
+    },
+    {
+      "name": "Flutter (Release Mode)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release"
+    }
+  ]
+}
