@@ -33,7 +33,7 @@ class _SearchBarWidgetState extends ConsumerState<SearchBarWidget>{
 
   void _onChanged(String value){
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () {
+    _debounce = Timer(const Duration(milliseconds: 1000), () {
       ref.read(searchQueryProvider.notifier).state = value;
       setState(() => _showSuggestions = value.length >= 3);
     });
