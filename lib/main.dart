@@ -25,7 +25,7 @@ void main() async {
 
   final GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;
   if (mapsImplementation is GoogleMapsFlutterAndroid) {
-    await mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);
+    if(mapsImplementation.useAndroidViewSurface) await mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);
     await mapsImplementation.warmup();
   }
 
@@ -48,7 +48,7 @@ void main() async {
   final String? savedButtonCol = prefs.getString('buttoncol');
   buttonHexNotifier.value = (savedButtonCol != null && savedButtonCol.isNotEmpty) ? savedButtonCol : baseButtonHex;
 
-// Load text saved colors
+  // Load text saved colors
   final String? savedTextDark = prefs.getString('textcol_dark');
   textHexNotifierDark.value = (savedTextDark != null && savedTextDark.isNotEmpty) ? savedTextDark : baseTextHexDark;
 

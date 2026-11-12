@@ -13,8 +13,8 @@ final dioProvider = Provider<Dio>((ref){
     BaseOptions(
       baseUrl: AppConstants.baseUrl,
       headers: {'User-Agent': 'OsmFlutterApp/1.0 (nilsrauschmayr@gmail.com)'},
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10)
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30)
     )
   );
 });
@@ -22,43 +22,6 @@ final dioProvider = Provider<Dio>((ref){
 /// Search query Notifier
 final searchQueryProvider = StateProvider<String>(((ref) =>  ''));
 
-/*
-/// Autocomplete suggestions using Nominatim
-final searchSuggProvider = FutureProvider.autoDispose<List<PlaceModel>>((
-  ref
-) async {
-  final query = ref.watch(searchQueryProvider);
-  if(query.trim().length < 3) return [];
-
-  final dio = ref.watch(dioProvider);
-
-  try {
-    final response = await dio.get(
-      '/search',
-      queryParameters: {
-        'q': query,
-        'format': 'json',
-        'limit': 5,
-        'addressdetails': 1
-      }
-    );
-    // DEBUG: Check what type of data the server actually sent back
-    debugPrint("Response type: ${response.data.runtimeType}");
-    debugPrint("Response data: ${response.data}");
-
-    final List data = response.data as List;
-    return data
-      .map((e) => PlaceModel.fromJson(e as Map<String, dynamic>))
-      .toList();
-  } on DioException catch (e) {
-    debugPrint("DioError: ${e.response?.statusCode} - ${e.message}");
-    return [];
-  } catch (e){
-    debugPrint("Unknown Error: $e");
-    return [];
-  }
-});
-*/
 /// Autocomplete suggestions using Photon API
 final searchSuggProvider = FutureProvider.autoDispose<List<PlaceModel>>((ref) async {
   final query = ref.watch(searchQueryProvider);
@@ -92,16 +55,21 @@ final searchSuggProvider = FutureProvider.autoDispose<List<PlaceModel>>((ref) as
       final geometry = feature['geometry'] as Map<String, dynamic>;
       final coordinates = geometry['coordinates'] as List;
 
-      final name = properties['name'] ?? properties['city'] ?? 'Unknown Location';
+      // ignore: prefer_interpolation_to_compose_strings
+      final name = properties['name'] ?? properties['street'] + ', ' + properties['housenumber'] ?? properties['city'] ?? 'Unknown Location';
       final city = properties['city'] ?? properties['state'] ?? '';
       final country = properties['country'] ?? '';
       
+      final shortName = [name]
+        .where((s) => s != null && s.toString().isNotEmpty)
+        .join(', ');
+
       final displayName = [name, city, country]
-          .where((s) => s != null && s.toString().isNotEmpty)
-          .join(', ');
+        .where((s) => s != null && s.toString().isNotEmpty && !shortName.contains(s))
+        .join(', ');
 
       return PlaceModel(
-        shortName: name,
+        shortName: shortName,
         displayName: displayName,
         latLng: LatLng(
           (coordinates[1] as num).toDouble(),

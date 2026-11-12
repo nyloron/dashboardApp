@@ -356,9 +356,8 @@ class _GMapsOsrm extends ConsumerState<GMapsOsrm> {
             PositionedDirectional(
               bottom: MediaQuery.of(context).padding.bottom + 16,
               start: 8,
-              end: MediaQuery.of(context).orientation ==
-                      Orientation.landscape
-                  ? MediaQuery.sizeOf(context).width / 2 + 80
+              end: MediaQuery.of(context).orientation == Orientation.landscape
+                  ? MediaQuery.sizeOf(context).width - 250
                   : 8,
               child: const RouteInfoPanel(),
             ),
