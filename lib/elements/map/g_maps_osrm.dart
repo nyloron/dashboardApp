@@ -120,7 +120,9 @@ class _GMapsOsrm extends ConsumerState<GMapsOsrm> {
     final controller = ref.read(mapControllerProvider);
     if (controller == null) return;
 
-    final p = ref.read(locationProvider).position!;
+    final p = ref.read(locationProvider).position;
+    if(p == null) return;
+    
     final double heading = route.markerBearing ?? 0.0;
 
     if(!_userHasMovedMap) {
@@ -252,7 +254,8 @@ class _GMapsOsrm extends ConsumerState<GMapsOsrm> {
               myLocationEnabled: true,
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
-              fortyFiveDegreeImageryEnabled: false,
+              webCameraControlEnabled: false,
+              fortyFiveDegreeImageryEnabled: true,
               trafficEnabled: true,
               mapId: '1879cb7727ee28b712665690',
               mapType: type,
