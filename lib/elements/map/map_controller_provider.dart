@@ -9,13 +9,14 @@ final mapControllerProvider = StateProvider<GoogleMapController?>((ref) => null)
 final isSatelliteProvider = StateProvider<bool>((ref) => false);
 
 extension MapControllerX on GoogleMapController {
-  Future<void> moveSmooth(LatLng center, {double zoom = AppConstants.defaultZoom, double tilt = 45.0}) async {
+  Future<void> moveSmooth(LatLng center, {double zoom = AppConstants.defaultZoom, double tilt = 45.0, double bearing = 0}) async {
     await animateCamera(
       CameraUpdate.newCameraPosition(
         CameraPosition(
           target: center,
           zoom: zoom,
-          tilt: tilt
+          tilt: tilt,
+          bearing: bearing
         )
       )
     );

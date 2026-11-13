@@ -1,4 +1,3 @@
-
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -34,6 +33,47 @@ class _GMapsOsrm extends ConsumerState<GMapsOsrm> {
   // Prevents programmatic camera movements from being mistaken for gestures.
   bool _isProgrammaticMove = false;
 
+  Orientation? _lastOrientation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Follow GPS only while no route is being displayed.
+    ref.listenManual(locationProvider, (previous, next) {
+      if (!_mapReady) return;
+
+      final currentRoute = ref.read(routeProvider);
+
+      if (next.position != null && !_userHasMovedMap && currentRoute.status != NavigationStatus.ready){
+        _isProgrammaticMove = true;
+        if (currentRoute.status != NavigationStatus.navigating) {
+          _moveToLocation(next.position!);
+        } else{
+          _handleNavigatingCamera(currentRoute);
+        }
+      }
+    });
+
+    // Respond to route changes.
+    ref.listenManual(routeProvider, (previous, next) {
+      final routeChanged = previous == null ||
+          previous.routePoints != next.routePoints;
+
+      // Automatically frame the complete route when it becomes ready.
+      if ((next.status == NavigationStatus.ready || next.status == NavigationStatus.idle) &&
+          next.routePoints.isNotEmpty &&
+          routeChanged) {
+        _fitRouteOnMap(next.routePoints);
+      }
+
+      // Follow the moving marker during navigation.
+      if (next.status == NavigationStatus.navigating && !_userHasMovedMap) {
+        _handleNavigatingCamera(next);
+      }
+    });
+  }
+
   void _onMapReady() {
     setState(() => _mapReady = true);
 
@@ -59,13 +99,13 @@ class _GMapsOsrm extends ConsumerState<GMapsOsrm> {
     final controller = ref.read(mapControllerProvider);
     if (controller == null || !_mapReady) return;
 
-    _isProgrammaticMove = true;
+    //_isProgrammaticMove = true;
 
     try {
       await controller.moveSmooth(
         pos,
         zoom: AppConstants.defaultZoom,
-        tilt: 45.0,
+        tilt: 65.0,
       );
     } catch (e) {
       debugPrint('Failed to move to location: $e');
@@ -75,124 +115,123 @@ class _GMapsOsrm extends ConsumerState<GMapsOsrm> {
 
   /// Follows the navigation marker while navigation is active.
   void _handleNavigatingCamera(RouteState route) {
-    if (!_mapReady ||
-        route.status != NavigationStatus.navigating ||
-        route.markerPos == null) {
-      return;
-    }
+    if (!_mapReady || route.status != NavigationStatus.navigating) return;
 
     final controller = ref.read(mapControllerProvider);
     if (controller == null) return;
 
-    final p = ref.watch(locationProvider).position!;
+    final p = ref.read(locationProvider).position!;
+    final double heading = route.markerBearing ?? 0.0;
 
-    controller.moveSmooth(
-      LatLng(p.latitude, p.longitude),
-      zoom: AppConstants.defaultZoom,
-      tilt: 45.0,
-    );
+    if(!_userHasMovedMap) {
+      controller.moveSmooth(
+        LatLng(p.latitude, p.longitude),
+        zoom: AppConstants.routeZoom,
+        tilt: 65.0,
+        bearing: heading
+      );
+    }
   }
 
-  /// Fits the entire OSRM route inside the visible map.
+  /// Fits the entire OSRM route inside the visible map safely.
   Future<void> _fitRouteOnMap(List<osm.LatLng> routePoints) async {
     if (!_mapReady || routePoints.isEmpty) return;
 
     final controller = ref.read(mapControllerProvider);
     if (controller == null) return;
 
-    // A single point cannot form useful bounds.
-    if (routePoints.length == 1) {
+    // Wait for the current frame to finish layout before touching bounds
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Small safety delay to ensure native view dimensions are non-zero
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (!mounted) return;
+
+      if (routePoints.length == 1) {
+        _isProgrammaticMove = true;
+        try {
+          await controller.animateCamera(
+            CameraUpdate.newLatLngZoom(
+              LatLng(
+                routePoints.first.latitude,
+                routePoints.first.longitude,
+              ),
+              16,
+            ),
+          );
+        } catch (e) {
+          debugPrint('Failed to focus single route point: $e');
+          _isProgrammaticMove = false;
+        }
+        return;
+      }
+
+      double minLat = routePoints.first.latitude;
+      double maxLat = routePoints.first.latitude;
+      double minLng = routePoints.first.longitude;
+      double maxLng = routePoints.first.longitude;
+
+      for (final point in routePoints) {
+        minLat = min(minLat, point.latitude);
+        maxLat = max(maxLat, point.latitude);
+        minLng = min(minLng, point.longitude);
+        maxLng = max(maxLng, point.longitude);
+      }
+
+      final bounds = LatLngBounds(
+        southwest: LatLng(minLat-0.035, minLng-0.035),
+        northeast: LatLng(maxLat, maxLng),
+      );
+
       _isProgrammaticMove = true;
 
       try {
+        // Animate camera to fit the bounds with 80px padding
         await controller.animateCamera(
-          CameraUpdate.newLatLngZoom(
-            LatLng(
-              routePoints.first.latitude,
-              routePoints.first.longitude,
-            ),
-            16,
-          ),
+          CameraUpdate.newLatLngBounds(bounds, 0),
         );
       } catch (e) {
-        debugPrint('Failed to focus route point: $e');
-        _isProgrammaticMove = false;
+        debugPrint('Failed to fit route bounds, retrying in 300ms: $e');
+        
+        // Fallback retry if native layout was still sizing up
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (!mounted) return;
+        
+        try {
+          await controller.animateCamera(
+            CameraUpdate.newLatLngBounds(bounds, 0),
+          );
+        } catch (retryError) {
+          debugPrint('Route bounds fit failed permanently: $retryError');
+          _isProgrammaticMove = false;
+        }
       }
-
-      return;
-    }
-
-    double minLat = routePoints.first.latitude;
-    double maxLat = routePoints.first.latitude;
-    double minLng = routePoints.first.longitude;
-    double maxLng = routePoints.first.longitude;
-
-    for (final point in routePoints) {
-      minLat = min(minLat, point.latitude);
-      maxLat = max(maxLat, point.latitude);
-      minLng = min(minLng, point.longitude);
-      maxLng = max(maxLng, point.longitude);
-    }
-
-    final bounds = LatLngBounds(
-      southwest: LatLng(minLat, minLng),
-      northeast: LatLng(maxLat, maxLng),
-    );
-
-    _isProgrammaticMove = true;
-
-    try {
-      await controller.animateCamera(
-        CameraUpdate.newLatLngBounds(bounds, 64),
-      );
-    } catch (e) {
-      debugPrint('Failed to fit route on map: $e');
-      _isProgrammaticMove = false;
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final location = ref.watch(locationProvider);
     final destination = ref.watch(selectedPlaceProvider);
     final route = ref.watch(routeProvider);
 
-    // Follow GPS only while no route is being displayed.
-    ref.listen(locationProvider, (previous, next) {
-      if (!_mapReady) return;
-
-      final currentRoute = ref.read(routeProvider);
-
-      if (next.position != null &&
-          !_userHasMovedMap &&
-          currentRoute.status == NavigationStatus.idle) {
-        _moveToLocation(next.position!);
-      }
-    });
-
-    // Respond to route changes.
-    ref.listen(routeProvider, (previous, next) {
-      final routeChanged = previous == null ||
-          previous.routePoints != next.routePoints;
-
-      // Automatically frame the complete route when it becomes ready.
-      if (next.status == NavigationStatus.ready &&
-          next.routePoints.isNotEmpty &&
-          routeChanged) {
-        _fitRouteOnMap(next.routePoints);
-      }
-
-      // Follow the moving marker during navigation.
-      if (next.status == NavigationStatus.navigating && _isProgrammaticMove) {
-        _handleNavigatingCamera(next);
-      }
-
-      // Optionally restore the complete route after arrival.
-      if (next.status == NavigationStatus.arrived &&
-          next.routePoints.isNotEmpty) {
-        _fitRouteOnMap(next.routePoints);
-      }
-    });
+    EdgeInsets mapPadding;
+    if (MediaQuery.of(context).orientation == Orientation.landscape) {
+      mapPadding = EdgeInsets.only(
+        left: MediaQuery.widthOf(context) / 4.2, // Matches RouteInfoPanel width
+        top: MediaQuery.paddingOf(context).top + 16,
+        right: 16,
+        bottom: MediaQuery.paddingOf(context).bottom + 16,
+      );
+    } else {
+      mapPadding = EdgeInsets.only(
+        top: route.status != NavigationStatus.navigating 
+            ? MediaQuery.paddingOf(context).top + 70 // Clearance for search bar
+            : MediaQuery.paddingOf(context).top + 16,
+        bottom: 230, // Clearance for RouteInfoPanel card at the bottom
+        left: 16,
+        right: 16,
+      );
+    }
 
     return ValueListenableBuilder<MapType>(
       valueListenable: GMapsOsrm.mapTypeNotifier,
@@ -201,11 +240,12 @@ class _GMapsOsrm extends ConsumerState<GMapsOsrm> {
           children: [
             GoogleMap(
               initialCameraPosition: CameraPosition(
-                target: location.position ??
+                target: ref.read(locationProvider).position ??
                     const LatLng(50.1109, 8.6821),
                 zoom: AppConstants.defaultZoom,
-                tilt: 45.0,
+                tilt: 65.0,
               ),
+              padding: mapPadding,
               minMaxZoomPreference:
                   const MinMaxZoomPreference(0, 21),
               buildingsEnabled: true,
@@ -215,13 +255,16 @@ class _GMapsOsrm extends ConsumerState<GMapsOsrm> {
               fortyFiveDegreeImageryEnabled: false,
               trafficEnabled: true,
               mapId: '1879cb7727ee28b712665690',
-              padding: EdgeInsets.zero,
               mapType: type,
 
               onCameraMoveStarted: () {
-                if (!_isProgrammaticMove) {
+                if (!_isProgrammaticMove && _lastOrientation == MediaQuery.orientationOf(context)) {
                   setState(() {
                     _userHasMovedMap = true;
+                  });
+                } else{
+                  setState(() {
+                    _lastOrientation = MediaQuery.orientationOf(context);
                   });
                 }
               },
@@ -304,21 +347,23 @@ class _GMapsOsrm extends ConsumerState<GMapsOsrm> {
                       onTap: () {
                         setState(() {
                           _userHasMovedMap = false;
+                          _isProgrammaticMove = true;
                         });
 
                         final currentRoute = ref.read(routeProvider);
 
-                        if (currentRoute.status ==
-                                NavigationStatus.ready ||
-                            currentRoute.status ==
-                                NavigationStatus.arrived) {
+                        if (currentRoute.status == NavigationStatus.ready) {
                           _fitRouteOnMap(currentRoute.routePoints);
                         } else {
                           final pos =
                               ref.read(locationProvider).position;
 
                           if (pos != null) {
-                            _moveToLocation(pos);
+                            if(currentRoute.status == NavigationStatus.navigating){
+                              _handleNavigatingCamera(route);
+                            } else{
+                              _moveToLocation(pos);
+                            }
                           }
                         }
                       },
@@ -357,8 +402,9 @@ class _GMapsOsrm extends ConsumerState<GMapsOsrm> {
               bottom: MediaQuery.of(context).padding.bottom + 16,
               start: 8,
               end: MediaQuery.of(context).orientation == Orientation.landscape
-                  ? MediaQuery.sizeOf(context).width - 250
+                  ? null
                   : 8,
+              width: MediaQuery.of(context).orientation == Orientation.landscape ? MediaQuery.widthOf(context) / 4.5 : null,
               child: const RouteInfoPanel(),
             ),
 

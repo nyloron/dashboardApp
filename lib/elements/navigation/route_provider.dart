@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_app/elements/map/location_state.dart';
 import 'package:flutter_app/elements/map/location_provider.dart';
 import 'package:flutter_app/elements/search/search_provider.dart';
@@ -18,6 +19,7 @@ import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platf
 class RouteNotifier extends StateNotifier<RouteState> {
   final Ref _ref;
   ProviderSubscription? _locationSubscription;
+  int _offRouteTicker = 0; //tracks consecutive GPS ticks away from the path
 
   RouteNotifier(this._ref) : super(const RouteState()) {
     // Automatically listen to live GPS position updates from locationProvider
@@ -31,17 +33,29 @@ class RouteNotifier extends StateNotifier<RouteState> {
     });
   }
 
-  Future<void> fetchRoute() async {
-    final location = _ref.read(locationProvider).position;
+  Future<void> fetchRoute({latlong.LatLng? startOverride}) async {
+    //Use the override (current live position) if provided, otherwise fallback to locationProvider
+    latlong.LatLng? startPos;
+    if (startOverride != null) {
+      startPos = startOverride;
+    } else {
+      final gpos = _ref.read(locationProvider).position;
+      if (gpos != null) {
+        startPos = latlong.LatLng(gpos.latitude, gpos.longitude);
+      }
+    }
     final destination = _ref.read(selectedPlaceProvider);
 
-    if (location == null || destination == null) return;
+    if (destination == null || startPos == null) return;
 
-    state = state.copyWith(status: NavigationStatus.loading, error: null);
+    //If we are rerouting, keep status navigating, otherwise show loading
+    if (startOverride == null) {
+      state = state.copyWith(status: NavigationStatus.loading, error: null);
+    }
 
     try {
       final url =
-        '${AppConstants.osrmBaseUrl}/${location.longitude},${location.latitude};'
+        '${AppConstants.osrmBaseUrl}/${startPos.longitude},${startPos.latitude};'
         '${destination.latLng.longitude},${destination.latLng.latitude}'
         '?overview=full&geometries=geojson&steps=true';
       
@@ -59,11 +73,12 @@ class RouteNotifier extends StateNotifier<RouteState> {
       state = state.copyWith(
         routePoints: coords,
         markerPos: coords.first,
-        status: NavigationStatus.ready,
+        status: (startOverride == null) ? NavigationStatus.ready : NavigationStatus.navigating,
         distanceUnit: (route['distance'] as num).toDouble(),
         durationSeconds: (route['duration'] as num).toDouble(),
         currentSegmentIndex: 0,
       );
+      _offRouteTicker = 0;
     } catch (e) {
       state = state.copyWith(
         status: NavigationStatus.idle,
@@ -108,6 +123,21 @@ class RouteNotifier extends StateNotifier<RouteState> {
         minDistance = d;
         closestSegmentIndex = i;
       }
+    }
+
+    // If the closest route point is more than 35 meters away, user drifted off path
+    if (minDistance > 35.0) {
+      _offRouteTicker++;
+      debugPrint("Warning: User drifting off-route. Distance: ${minDistance.toStringAsFixed(1)}m (Tick $_offRouteTicker/3)");
+
+      if (_offRouteTicker >= 3) {
+        debugPrint("Off-route confirmed! Automatically recalculating route from current position...");
+        _offRouteTicker = 0;
+        fetchRoute(startOverride: currentPos); // Trigger OSRM rerouting
+        return;
+      }
+    } else {
+      _offRouteTicker = 0; // Reset counter if back on track
     }
 
     // Calculate heading/bearing towards the next upcoming route point

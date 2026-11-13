@@ -14,5 +14,5 @@ class AppConstants {
   static const Duration routeDrawDuration = Duration(milliseconds: 1200);
 
   static const double defaultZoom = 18.0;
-  static const double routeZoom = 13.0;
+  static const double routeZoom = 20.0;
 }
