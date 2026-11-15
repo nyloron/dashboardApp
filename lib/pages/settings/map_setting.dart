@@ -1,16 +1,16 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/custom_img_button.dart';
-import 'package:flutter_app/elements/map/g_maps_osrm.dart';
+import 'package:flutter_app/elements/nav/map/g_map.dart';
 import 'package:flutter_app/main.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // ignore: must_be_immutable, camel_case_types
 class mapSettings extends StatelessWidget{
-  int _selectedIndex = (GMapsOsrm.mapTypeNotifier.value == MapType.normal) ? 0 
-    : ((GMapsOsrm.mapTypeNotifier.value == MapType.hybrid)) ? 1 
-    : (GMapsOsrm.mapTypeNotifier.value == MapType.terrain) ? 2
+  int _selectedIndex = (GMaps.mapTypeNotifier.value == MapType.normal) ? 0 
+    : ((GMaps.mapTypeNotifier.value == MapType.hybrid)) ? 1 
+    : (GMaps.mapTypeNotifier.value == MapType.terrain) ? 2
     : 0;
 
   mapSettings({super.key});
@@ -39,7 +39,7 @@ class mapSettings extends StatelessWidget{
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ValueListenableBuilder<MapType>(
-              valueListenable: GMapsOsrm.mapTypeNotifier,
+              valueListenable: GMaps.mapTypeNotifier,
               builder: (context, type, child){
                 return Column(crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

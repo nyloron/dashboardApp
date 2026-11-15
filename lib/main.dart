@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/elements/map/g_maps_osrm.dart';
+import 'package:flutter_app/elements/nav/map/g_map.dart';
 import 'package:flutter_app/pages/index.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,7 +61,7 @@ void main() async {
 
   //Map Type
   String type = prefs.getString('MapType')?? 'normal';
-  GMapsOsrm.mapTypeNotifier.value = (type == 'normal') ? .normal 
+  GMaps.mapTypeNotifier.value = (type == 'normal') ? .normal 
     : (type == 'hybrid') ? .hybrid
     : (type == 'terrain') ? .terrain
     : .normal;
@@ -116,7 +117,7 @@ void updateClockFormat(bool clockFormat) async {
 /// Helper function to update clock foramt and trigger live updates
 void updateMapType(MapType type) async {
     final prefs = await SharedPreferences.getInstance();
-    GMapsOsrm.mapTypeNotifier.value = type;
+    GMaps.mapTypeNotifier.value = type;
     await prefs.setString('MapType', type.name);
 }
 
