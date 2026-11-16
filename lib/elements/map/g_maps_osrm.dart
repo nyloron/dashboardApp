@@ -2,8 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_app/elements/map/location_provider.dart';
-import 'package:flutter_app/elements/map/map_controller_provider.dart';
-import 'package:flutter_app/elements/map/map_controls.dart';
+import 'package:flutter_app/elements/nav/map/map_controller_provider.dart';
+import 'package:flutter_app/elements/nav/map/map_controls.dart';
 import 'package:flutter_app/elements/navigation/route_state.dart';
 import 'package:flutter_app/elements/navigation/route_provider.dart';
 import 'package:flutter_app/elements/navigation/route_info_panel.dart';

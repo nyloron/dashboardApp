@@ -56,7 +56,7 @@ class _GMaps extends ConsumerState<GMaps> {
               minMaxZoomPreference: const MinMaxZoomPreference(0, 21),
               //Map settings
               buildingsEnabled: true,
-              myLocationEnabled: true,
+              myLocationEnabled: true, //add true if navigation is not active, when active use custom nav marker for heading
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               webCameraControlEnabled: false,

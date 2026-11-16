@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_app/elements/map/location_provider.dart';
-import 'package:flutter_app/elements/map/map_controller_provider.dart';
+import 'package:flutter_app/elements/nav/map/map_controller_provider.dart';
 import 'package:flutter_app/elements/navigation/route_provider.dart';
 import 'package:flutter_app/elements/search/place_models.dart';
 import 'package:flutter_app/elements/search/search_provider.dart';

@@ -18,7 +18,8 @@ extension MapControllerX on GoogleMapController {
           tilt: tilt,
           bearing: bearing
         )
-      )
+      ),
+      duration: const Duration(seconds: 1)
     );
   }
 }
