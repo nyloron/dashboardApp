@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/elements/nav/map/location_provider.dart';
+import 'package:flutter_app/elements/nav/search/search_bar_widget.dart';
+import 'package:flutter_app/elements/nav/navigation/route_provider.dart';
+import 'package:flutter_app/elements/nav/navigation/route_state.dart';
 import 'package:flutter_app/elements/utils/app_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -26,15 +29,25 @@ class _GMaps extends ConsumerState<GMaps> {
   Widget build(BuildContext context){
     //if the device is in Orientation.landscape
     final bool isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
+    final route = ref.watch(routeProvider);
 
     //mapPadding control
     EdgeInsets mapPadding;
     if(isLandscape){
       mapPadding = EdgeInsets.only(
-        left: MediaQuery.widthOf(context) / 4.2,
+        right: MediaQuery.widthOf(context) / 4.2,
         top: MediaQuery.paddingOf(context).top + 16,
-        right: 16,
-        bottom: MediaQuery.paddingOf(context).bottom + 16,
+        left: 16,
+        bottom: 0,
+      );
+    } else{
+      mapPadding = EdgeInsets.only(
+        top: 30,
+        left: 8,
+        right: 8,
+        bottom: (true) //route info panel logic
+          ? 16+10
+          : 16
       );
     }
 
@@ -52,7 +65,7 @@ class _GMaps extends ConsumerState<GMaps> {
                 zoom: AppConstants.defaultZoom,
                 tilt: 0
               ),
-              //padding: mapPadding,
+              padding: mapPadding,
               minMaxZoomPreference: const MinMaxZoomPreference(0, 21),
               //Map settings
               buildingsEnabled: true,
@@ -70,12 +83,42 @@ class _GMaps extends ConsumerState<GMaps> {
               //and since userMap movement prevention is already in place
               onCameraIdle: () => _isProgrammaticMove = false,
 
+              //route lines drawn on map
+              polylines: {
+                if(route.routePoints.length >= 2)...[
+                  Polyline(
+                    polylineId: const PolylineId('main route'),
+                    points: route.routePoints.map(
+                      (p) => LatLng(
+                        p.latitude,
+                        p.longitude
+                      )
+                    ).toList(),
+                    width: 5,
+                    endCap: Cap.roundCap,
+                    startCap: Cap.roundCap,
+                    color: const Color(0xFF440DFA)
+                  )
+                ]
+              },
             ),
+
+            //search bar
+            if(route.status != NavigationStatus.navigating)...[
+              PositionedDirectional(
+                top: 8,
+                start: 8,
+                end: isLandscape
+                  ? MediaQuery.widthOf(context) / 2 + 80
+                  : 8,
+                child: const SearchBarWidget()
+              )
+            ],
 
             //Route info panel, only visible after a destination has been selected
             if(true)...[
               PositionedDirectional(
-                bottom: MediaQuery.of(context).padding.bottom + 16,
+                bottom: 16,
                 start: 8,
                 end: isLandscape
                   ? null
@@ -83,7 +126,7 @@ class _GMaps extends ConsumerState<GMaps> {
                 width: isLandscape
                   ? MediaQuery.widthOf(context) / 4.5
                   : null,
-                child: Container() //infoPanel
+                child: Container(color: Colors.amber, width: 50, height: 10) //infoPanel
               )
             ]
           ],

@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_app/elements/map/location_state.dart';
 import 'package:flutter_app/elements/map/location_provider.dart';
-import 'package:flutter_app/elements/search/search_provider.dart';
+import 'package:flutter_app/elements/nav/search/search_provider.dart';
 import 'package:flutter_app/elements/utils/app_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_app/elements/navigation/route_state.dart';
