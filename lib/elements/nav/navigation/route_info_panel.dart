@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_app/elements/navigation/route_state.dart';
-import 'package:flutter_app/elements/navigation/route_provider.dart';
+import 'package:flutter_app/elements/nav/map/location_provider.dart';
+import 'package:flutter_app/elements/nav/map/map_controller_provider.dart';
+import 'package:flutter_app/elements/nav/navigation/route_state.dart';
+import 'package:flutter_app/elements/nav/navigation/route_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class RouteInfoPanel extends ConsumerWidget{
@@ -87,8 +89,12 @@ class RouteInfoPanel extends ConsumerWidget{
                     ),
                   ),
                 ],
-                IconButton(
-                  onPressed: () => ref.read(routeProvider.notifier).clearRoute(),
+                if(route.status == NavigationStatus.navigating || route.status == NavigationStatus.navigating) IconButton(
+                  onPressed: () {
+                    ref.read(routeProvider.notifier).clearRoute();
+                    final loc = ref.watch(locationProvider).position;  //only move camera if there is a user location
+                    if(loc != null) ref.read(mapControllerProvider)?.moveSmooth(loc, tilt: 0);
+                  },
                   icon: Icon(
                     Icons.cancel_outlined,
                     //color: Theme.of(context).colorScheme.primary,

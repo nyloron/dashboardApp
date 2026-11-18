@@ -7,7 +7,7 @@ import 'package:flutter_app/elements/map/location_provider.dart';
 import 'package:flutter_app/elements/nav/search/search_provider.dart';
 import 'package:flutter_app/elements/utils/app_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_app/elements/navigation/route_state.dart';
+import 'package:flutter_app/elements/old/navigation/route_state.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'dart:async';
 

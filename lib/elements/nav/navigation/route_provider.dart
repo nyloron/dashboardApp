@@ -28,7 +28,7 @@ class RouteNotifier extends StateNotifier<RouteState> {
   }
 
   ///initiate the navigation with a reachable current location
-  void startNevigation(){
+  void startNavigation(){
     if(state.routePoints.isEmpty) return;
 
     final gpos = _ref.read(locationProvider).position;
@@ -131,11 +131,15 @@ class RouteNotifier extends StateNotifier<RouteState> {
     if (currPos != null) {
       startPos = currPos;
     } else {
-      //read locationProvider
-      final pos = _ref.read(locationProvider).position;
-      //convert Google Flutter provided LatLng to normal LatLng
-      if (pos != null) {
-        startPos = latlong.LatLng(pos.latitude, pos.longitude);
+      //Wait up to 1 second (10 attempts x 100ms) for a location fix
+      for (int i = 0; i < 10; i++) {
+        final pos = _ref.read(locationProvider).position;
+        debugPrint('Position: ${pos.toString()}');
+        if (pos != null) {
+          startPos = latlong.LatLng(pos.latitude, pos.longitude);
+          break;
+        }
+        await Future.delayed(const Duration(milliseconds: 100));
       }
     }
     //read chosen destination
@@ -193,6 +197,7 @@ class RouteNotifier extends StateNotifier<RouteState> {
           ? state.currentSegmentIndex
           : 0
       );
+      debugPrint('Route loaded');
     } catch (e){
       state = state.copyWith(
         status: NavigationStatus.idle,

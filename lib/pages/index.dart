@@ -3,7 +3,6 @@ import 'package:flutter_app/elements/nav/map/g_map.dart';
 import 'package:flutter_app/taskbar.dart'; // Access themeNotifier
 import 'package:flutter_app/pages/settings/settigns.dart';
 import 'package:clock/clock.dart';
-import 'package:flutter_app/elements/map/g_maps_osrm.dart';
 import 'dart:async';
 
 class Index extends StatelessWidget {
@@ -48,9 +47,6 @@ class Index extends StatelessWidget {
       body: Column(
         children: [
           // lib/pages/index.dart
-          Expanded(
-            child: GMapsOsrm(), // ProviderScope now only lives around the map
-          ),
           Expanded(
             child: GMaps() 
           )

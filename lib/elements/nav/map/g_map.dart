@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/elements/nav/map/location_provider.dart';
+import 'package:flutter_app/elements/nav/map/map_controller_provider.dart';
 import 'package:flutter_app/elements/nav/search/search_bar_widget.dart';
 import 'package:flutter_app/elements/nav/navigation/route_provider.dart';
 import 'package:flutter_app/elements/nav/navigation/route_state.dart';
+import 'package:flutter_app/elements/nav/search/search_provider.dart';
+import 'package:flutter_app/elements/nav/navigation/route_info_panel.dart';
 import 'package:flutter_app/elements/utils/app_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -26,30 +29,65 @@ class _GMaps extends ConsumerState<GMaps> {
   Orientation? _lastOrientation;
 
   @override
+  void initState(){
+    super.initState();
+
+    final route = ref.read(routeProvider);
+
+    //handle location following controll
+    ref.listenManual(locationProvider, (previous, next) {
+      if (!_mapReady) return;
+
+      //apply camera logic here
+      if(!_userHasMovedMap){
+        _isProgrammaticMove = true;
+        return;
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context){
     //if the device is in Orientation.landscape
     final bool isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
     final route = ref.watch(routeProvider);
+    final destination = ref.watch(selectedPlaceProvider);
 
     //mapPadding control
     EdgeInsets mapPadding;
     if(isLandscape){
       mapPadding = EdgeInsets.only(
-        right: MediaQuery.widthOf(context) / 4.2,
-        top: MediaQuery.paddingOf(context).top + 16,
-        left: 16,
-        bottom: 0,
+        left: MediaQuery.widthOf(context) / 4.2,
+        top: (route.status == NavigationStatus.ready
+          || route.status == NavigationStatus.navigating
+          || route.status == NavigationStatus.arrived
+        )
+          ? MediaQuery.paddingOf(context).top + 16
+          //to keep reatio while hiding ugly map credit
+          : -32,
+        right: 16,
+        bottom: (route.status == NavigationStatus.ready
+          || route.status == NavigationStatus.navigating
+          || route.status == NavigationStatus.arrived
+        )
+          ? 0
+          //to keep reatio while hiding ugly map credit
+          : -32,
       );
     } else{
       mapPadding = EdgeInsets.only(
-        top: 30,
+        top: (route.status != NavigationStatus.navigating) ? 30 : 16,
         left: 8,
         right: 8,
-        bottom: (true) //route info panel logic
-          ? 16+10
-          : 16
+        bottom: (route.status == NavigationStatus.ready
+          || route.status == NavigationStatus.navigating
+          || route.status == NavigationStatus.arrived
+        )
+          ? 16+150
+          : 0
       );
     }
+    debugPrint(route.status.toString());
 
     //return ValueListenableBuilder to change the map type according to the setting chosen by the user
     return ValueListenableBuilder(
@@ -79,13 +117,42 @@ class _GMaps extends ConsumerState<GMaps> {
               //according to the user setting
               mapType: type,
 
+              //handle user and software camera movement distinction
+              onCameraMoveStarted: () {
+                if (!_isProgrammaticMove && _lastOrientation == MediaQuery.orientationOf(context)) {
+                  setState(() {
+                    _userHasMovedMap = true;
+                  });
+                } else{
+                  setState(() {
+                    _lastOrientation = MediaQuery.orientationOf(context);
+                  });
+                }
+              },
               //if the map has stopped moving set _isProgrammaticMove to false, since movement of any kind has stopped
               //and since userMap movement prevention is already in place
               onCameraIdle: () => _isProgrammaticMove = false,
 
+              onMapCreated: (controller) {
+                ref.read(mapControllerProvider.notifier).state = controller;
+                _mapReady = true;
+              },
+
+              markers: {
+                if(destination != null && route.status != NavigationStatus.idle)...[
+                  Marker(
+                    markerId: const MarkerId('destination'),
+                    position: LatLng(
+                      destination.latLng.latitude,
+                      destination.latLng.longitude
+                    )
+                  )
+                ]
+              },
+
               //route lines drawn on map
               polylines: {
-                if(route.routePoints.length >= 2)...[
+                if(route.routePoints.length >= 2 && route.status == NavigationStatus.navigating)...[
                   Polyline(
                     polylineId: const PolylineId('main route'),
                     points: route.routePoints.map(
@@ -106,29 +173,27 @@ class _GMaps extends ConsumerState<GMaps> {
             //search bar
             if(route.status != NavigationStatus.navigating)...[
               PositionedDirectional(
-                top: 8,
-                start: 8,
+                top: 16,
+                start: 16,
                 end: isLandscape
                   ? MediaQuery.widthOf(context) / 2 + 80
-                  : 8,
+                  : 16,
                 child: const SearchBarWidget()
               )
             ],
 
             //Route info panel, only visible after a destination has been selected
-            if(true)...[
-              PositionedDirectional(
-                bottom: 16,
-                start: 8,
-                end: isLandscape
-                  ? null
-                  : 8,
-                width: isLandscape
-                  ? MediaQuery.widthOf(context) / 4.5
-                  : null,
-                child: Container(color: Colors.amber, width: 50, height: 10) //infoPanel
-              )
-            ]
+            PositionedDirectional(
+              bottom: 16,
+              start: 16,
+              end: isLandscape
+                ? null
+                : 16,
+              width: isLandscape
+                ? MediaQuery.widthOf(context) / 4.5
+                : null,
+              child: RouteInfoPanel()
+            )
           ],
         );
       }

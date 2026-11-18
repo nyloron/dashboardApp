@@ -53,7 +53,7 @@ class LocationNotifier extends StateNotifier<LocationState> {
   int retryTicker = 3;
 
   LocationNotifier() : super(const LocationState(isLoading: true)){
-    //_init(); //if no function without calling init first, take out comment
+    _init(); //if no function without calling init first, take out comment
     _initServiceStatusListener();
   }
 
@@ -138,7 +138,7 @@ class LocationNotifier extends StateNotifier<LocationState> {
           distanceFilter: 3
         )
       ).listen((pos) {
-        state.copyWith(
+        state = state.copyWith(
           position: LatLng(pos.latitude, pos.longitude),
           heading: pos.heading,
           speed: pos.speed

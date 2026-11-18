@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_app/elements/map/location_provider.dart';
 import 'package:flutter_app/elements/nav/map/map_controller_provider.dart';
-import 'package:flutter_app/elements/navigation/route_provider.dart';
+import 'package:flutter_app/elements/nav/navigation/route_provider.dart';
 import 'package:flutter_app/elements/nav/search/place_models.dart';
 import 'package:flutter_app/elements/nav/search/search_provider.dart';
 import 'package:flutter_app/main.dart';
@@ -31,32 +31,42 @@ class _SearchBarWidgetState extends ConsumerState<SearchBarWidget>{
     super.dispose();
   }
 
+  ///what happens when the search bar widget is changed => i.e. when the user has typed something
   void _onChanged(String value){
+    //cancel previous
     _debounce?.cancel();
+    //start timer after which the suggestions will be fetched from the api,
+    //debounce delay in order to not overload the api
     _debounce = Timer(const Duration(milliseconds: 1000), () {
       ref.read(searchQueryProvider.notifier).state = value;
       setState(() => _showSuggestions = value.length >= 3);
     });
   }
 
+  ///actions to be performed when a place is selected
   void _onSelectPlace(PlaceModel place){
+    //place the selected places shortName in the search bar widget
     _controller.text = place.shortName;
+    //close focus and keyboard with it
     _focus.unfocus();
     setState(() => _showSuggestions = false);
 
+    //set the selected place
     ref.read(selectedPlaceProvider.notifier).state = place;
     ref.read(routeProvider.notifier).fetchRoute();
-
-    //final mapController = ref.read(mapControllerProvider);
-    //mapController?.moveSmooth(place.latLng, zoom: 14);
+    debugPrint('Move to selected place ${ref.read(selectedPlaceProvider.notifier).state?.shortName}');
+    //move camera to the destination
+    ref.read(mapControllerProvider)?.moveSmooth(place.latLng, zoom: 18, tilt: 0);
   }
 
+  ///on any ocation should the bar be cleared most commonly through the close button
   void _clearSearch(){
     _controller.clear();
     ref.read(searchQueryProvider.notifier).state = '';
     ref.read(selectedPlaceProvider.notifier).state = null;
     ref.read(routeProvider.notifier).clearRoute();
-    ref.read(mapControllerProvider)?.moveCamera(CameraUpdateNewLatLng(ref.read(locationProvider).position!));
+    final loc = ref.read(locationProvider).position;  //only move camera if there is a user location
+    if(loc != null) ref.read(mapControllerProvider)?.moveSmooth(loc, tilt: 0);
     setState(() => _showSuggestions = false);
   }
 
